@@ -2,17 +2,17 @@ name: Deploy Components Demo App Workflow
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
 
 jobs:
   deploy:
     name: Deploy Demo App and Storybook
     runs-on: ubuntu-latest
     env:
-        AWS_DEFAULT_REGION: us-east-1
-        AWS_DEFAULT_OUTPUT: text
-        AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY}}
-        AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_DEFAULT_OUTPUT: text
+      AWS_ACCESS_KEY_ID: ${{secrets.AWS_ACCESS_KEY}}
+      AWS_SECRET_ACCESS_KEY: ${{secrets.AWS_SECRET_ACCESS_KEY}}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -30,13 +30,26 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 16
-      - name: Install Yalc
-        run: sudo npm i yalc -g
-      - name: NPM Install
-        run: npm ci
+      - name: Pack the current component library
+        run: |
+          npm run build
+          npm pack
+      - name: Checkout amazon-chime-sdk repo
+        uses: actions/checkout@v2
+        with:
+          repository: 'aws-samples/amazon-chime-sdk'
+      - name: Get component library version
+        id: package-version
+        uses: aws/amazon-chime-sdk-component-library-react@master
+      - name: Install current component library to meeting demo
+        run: |
+          cd amazon-chime-sdk/apps/meeting
+          npm install ../../../amazon-chime-sdk-component-library-react-${{ steps.package-version.outputs.current-version}}.tgz
+      - name: Update js sdk version
+        uses: ./.github/actions/update-js-sdk-action
       - name: Deploy the Serverless Demo App
         run: |
-          cd $GITHUB_WORKSPACE/demo/meeting/serverless
+          cd serverless
           node ./deploy.js -r us-east-1 -b chime-sdk-components-demo-canary -s chime-sdk-components-demo-canary -l
       - name: Publish Storybook Documentation
         run: npm run deploy-storybook -- --ci

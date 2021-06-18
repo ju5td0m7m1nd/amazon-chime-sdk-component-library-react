@@ -38,6 +38,7 @@
   "author": "",
   "license": "Apache-2.0",
   "dependencies": {
+    "@actions/core": "^1.4.0",
     "@popperjs/core": "^2.2.2",
     "fast-memoize": "^2.5.2",
     "react-popper": "^2.2.4",

@@ -1,0 +1,6 @@
+name: 'Update JS SDK dependency'
+description: 'Update the js sdk version to the latest to match the dependency requirement in component library.'
+
+runs:
+  using: 'node16'
+  main: 'update-js-sdk-version.js'
