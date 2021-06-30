@@ -76,21 +76,21 @@ logger.log(
   `        From: ${util.format('\x1b[32m%s\x1b[0m', originalVersion)} `
 );
 logger.log(
-  `        
+  `
             To:   ${util.format('\x1b[31m%s\x1b[0m', versionString)} `
 );
 
 shouldContinuePrompt();
 
 spawnOrFail('git', ['fetch origin']);
-if (release_option !== '5') {
-  logger.warn(`
-    Warning: are you sure to reset the HEAD to origin/master?
-    Current staged and local changes will be lost!\n`);
-  shouldContinuePrompt();
-  logger.log('Reseting HEAD to origin/master');
-  spawnOrFail('git', ['reset --hard origin/master']);
-}
+// if (release_option !== '5') {
+//   logger.warn(`
+//     Warning: are you sure to reset the HEAD to origin/master?
+//     Current staged and local changes will be lost!\n`);
+//   shouldContinuePrompt();
+//   logger.log('Reseting HEAD to origin/master');
+//   spawnOrFail('git', ['reset --hard origin/master']);
+// }
 spawnOrFail('git', [' clean -ffxd .']);
 
 logger.log(`Updating ${versionFile} with ${versionString}`);
@@ -125,6 +125,11 @@ const updatedSdkVersion = spawnOrFail('npm', [
 
 // Skip updating peer dependencies for hotfix
 if (release_option !== '5') {
+  // Update the peer dependency to the most updated version of the SDK
+  logger.log(
+    `Installing SDK Version: ${updatedSdkVersion} into the meeting demo and as a peerDependency and devDependency of the react library.`
+  );
+
   let componentsPackageJson = JSON.parse(
     fs.readFileSync('package.json', 'utf-8')
   );
@@ -139,6 +144,19 @@ if (release_option !== '5') {
     'package.json',
     JSON.stringify(componentsPackageJson, null, 2)
   );
+
+  logger.log('NPM Installing component library...');
+  spawnOrFail('npm', [`install`]);
+
+  // Checkout the meeting demo and udpate the demo to the most up to date version of the SDK
+  process.chdir(path.join(__dirname, '../..'));
+  spawnOrFail('git', [
+    'clone https://github.com/aws-samples/amazon-chime-sdk.git',
+  ]);
+  process.chdir(path.join(__dirname, '../../amazon-chime-sdk/apps/meeting'));
+  spawnOrFail('npm', [`install amazon-chime-sdk-js@${updatedSdkVersion}`]);
+
+  process.chdir(path.join(__dirname, '..'));
 }
 
 spawnOrFail('git', ['add -A']);
@@ -188,15 +206,14 @@ if (release_option === '5') {
 } else {
   spawnOrFail('git', ['push origin HEAD:release -f']);
 }
-
-spawnOrFail('git', [
-  'clone https://github.com/aws-samples/amazon-chime-sdk.git',
-]);
 process.chdir(
-  path.join(__dirname, '../amazon-chime-sdk/apps/meeting/serverless')
+  path.join(__dirname, '../../amazon-chime-sdk/apps/meeting/serverless')
 );
 logger.log('Deploying unique release candidate Meeting Demo URL...');
 const formattedVersion = versionString.replace(/\./g, '-');
 spawnOrFail('node', [
   `./deploy.js -r us-east-1 -b chime-sdk-components-demo-${formattedVersion} -s chime-sdk-components-demo-${formattedVersion}`,
 ]);
+
+process.chdir(path.join(__dirname, '../..'));
+spawnOrFail('rm', ['-rf amazon-chime-sdk']);
